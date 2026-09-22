@@ -21,15 +21,30 @@ logfileSetup () {
 getArrAppInfo () {
   # Get Arr App information
   if [ -z "$arrUrl" ] || [ -z "$arrApiKey" ]; then
-    arrUrlBase="$(cat /config/config.xml | xq | jq -r .Config.UrlBase)"
-    if [ "$arrUrlBase" == "null" ]; then
+    local xml_file="/config/config.xml"
+
+    # Helper function to extract XML tags safely using grep/sed
+    extract_tag() {
+      local tag="$1"
+      grep -oPm1 "(?<=<${tag}>)[^<]+" "$xml_file" 2>/dev/null || echo ""
+    }
+
+    local raw_urlbase
+    raw_urlbase=$(extract_tag "UrlBase")
+    if [ -z "$raw_urlbase" ] || [ "$raw_urlbase" == "null" ]; then
       arrUrlBase=""
     else
-      arrUrlBase="/$(echo "$arrUrlBase" | sed "s/\///")"
+      arrUrlBase="/$(echo "$raw_urlbase" | sed "s/\///g")"
     fi
-    arrName="$(cat /config/config.xml | xq | jq -r .Config.InstanceName)"
-    arrApiKey="$(cat /config/config.xml | xq | jq -r .Config.ApiKey)"
-    arrPort="$(cat /config/config.xml | xq | jq -r .Config.Port)"
+
+    arrName=$(extract_tag "InstanceName")
+    [ -z "$arrName" ] && arrName="Arr"
+
+    arrApiKey=$(extract_tag "ApiKey")
+
+    arrPort=$(extract_tag "Port")
+    [ -z "$arrPort" ] && arrPort="8989"
+
     arrUrl="http://127.0.0.1:${arrPort}${arrUrlBase}"
   fi
 }
